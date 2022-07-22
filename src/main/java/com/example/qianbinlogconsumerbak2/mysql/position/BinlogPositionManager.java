@@ -17,15 +17,8 @@
 
 package com.example.qianbinlogconsumerbak2.mysql.position;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+
 import com.example.qianbinlogconsumerbak2.mysql.Config;
-import org.apache.rocketmq.client.consumer.DefaultMQPullConsumer;
-import org.apache.rocketmq.client.consumer.PullResult;
-import org.apache.rocketmq.client.consumer.PullStatus;
-import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +26,6 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Set;
 
 public class BinlogPositionManager {
     private Logger logger = LoggerFactory.getLogger(BinlogPositionManager.class);
@@ -50,21 +42,7 @@ public class BinlogPositionManager {
     }
 
     public void initBeginPosition() throws Exception {
-
-        if (config.startType == null || config.startType.equals("DEFAULT")) {
-            initPositionDefault();
-
-        } else if (config.startType.equals("NEW_EVENT")) {
-            initPositionFromBinlogTail();
-
-        } else if (config.startType.equals("LAST_PROCESSED")) {
-            initPositionFromMqTail();
-
-        } else if (config.startType.equals("SPECIFIED")) {
-            binlogFilename = config.binlogFilename;
-            nextPosition = config.nextPosition;
-
-        }
+        initPositionDefault();
 
         if (binlogFilename == null || nextPosition == null) {
             throw new Exception("binlogFilename | nextPosition is null.");
@@ -74,7 +52,7 @@ public class BinlogPositionManager {
     private void initPositionDefault() throws Exception {
 
         try {
-            initPositionFromMqTail();
+            initPositionFromDataSource();
         } catch (Exception e) {
             logger.error("Init position from mq error.", e);
         }
@@ -85,32 +63,77 @@ public class BinlogPositionManager {
 
     }
 
-    private void initPositionFromMqTail() throws Exception {
-        DefaultMQPullConsumer consumer = new DefaultMQPullConsumer("BINLOG_CONSUMER_GROUP");
-        consumer.setNamesrvAddr(config.mqNamesrvAddr);
-        consumer.setMessageModel(MessageModel.valueOf("BROADCASTING"));
-        consumer.start();
+    private void initPositionFromDataSource() throws SQLException {
 
-        Set<MessageQueue> queues = consumer.fetchSubscribeMessageQueues(config.mqTopic);
-        MessageQueue queue = queues.iterator().next();
+        // @leimo 1. create database binlog and table position
+        // 仅在 binlog.position表没有创建时初始化 database & table
+        createPositionDatabaseAndTable();
 
-        if (queue != null) {
-            Long offset = consumer.maxOffset(queue);
-            if (offset > 0)
-                offset--;
+        // @leimo 2. 查询 position数据表，填充fileName 和 position
+        doInitPositionFromDataSource();
+    }
 
-            PullResult pullResult = consumer.pull(queue, "*", offset, 100);
+    private void createPositionDatabaseAndTable() throws SQLException {
+        String CREATE_DATABASE = "create database if not exists binlog;";
 
-            if (pullResult.getPullStatus() == PullStatus.FOUND) {
-                MessageExt msg = pullResult.getMsgFoundList().get(0);
-                String json = new String(msg.getBody(), "UTF-8");
+        String CREATE_TABLE = "create table if not exists binlog.position\n" +
+                "(\n" +
+                "    serverId BIGINT         not null,\n" +
+                "    `group`  varchar(200) not null,\n" +
+                "    fileName varchar(200) not null,\n" +
+                "    position BIGINT         not null\n" +
+                ");\n";
+// @leimo index不能重复创建
+//        String CREATE_GROUP_INDEX = "create unique index position_group_uindex\n" +
+//                "    on binlog.position (`group`);\n";
+//
+//        String CREATE_SERVERID_INDEX = "create unique index position_serverId_uindex\n" +
+//                "    on binlog.position (serverId);";
 
-                JSONObject js = JSON.parseObject(json);
-                binlogFilename = (String) js.get("binlogFilename");
-                nextPosition = js.getLong("nextPosition");
+//        String INSERT = "INSERT INTO binlog.position set serverId=123,`group`='dd',fileName='file1',position=1000;";
+        Connection connection = null;
+
+        try {
+            connection = dataSource.getConnection();
+            int createDatabaseRes = connection.createStatement().executeUpdate(CREATE_DATABASE);
+            int createTableRes = connection.createStatement().executeUpdate(CREATE_TABLE);
+//            int createGroupIndex = connection.createStatement().executeUpdate(CREATE_GROUP_INDEX);
+//            int createServerIdIndex = connection.createStatement().executeUpdate(CREATE_SERVERID_INDEX);
+//            try {
+//                int res = connection.createStatement().executeUpdate(INSERT);
+//            } catch (SQLException e) {
+//                e.printStackTrace();
+//            }
+            logger.info("[BinlogPositionManager]: create position database and table");
+        } finally {
+            if (connection != null) {
+                connection.close();
             }
         }
+    }
 
+    private void doInitPositionFromDataSource() throws SQLException {
+        String QUERY_POSITION = "select fileName,position from binlog.position where `group`=" + "'" + config.group + "'";
+//        String QUERY_POSITION = "select fileName,position from binlog.position where `group`='dd'" ;
+        Connection conn = null;
+        ResultSet queryPositionRes = null;
+        try {
+            Connection connection = dataSource.getConnection();
+            // query position
+            queryPositionRes = connection.createStatement().executeQuery(QUERY_POSITION);
+            while (queryPositionRes.next()) {
+                binlogFilename = queryPositionRes.getString("fileName");
+                nextPosition = queryPositionRes.getLong("position");
+            }
+        } finally {
+            if (conn != null) {
+                conn.close();
+            }
+            if (queryPositionRes != null) {
+                queryPositionRes.close();
+            }
+        }
+        logger.info("[BinlogPositionManager]: init from datasource, fileName is {}, position is {}",binlogFilename,nextPosition);
     }
 
     private void initPositionFromBinlogTail() throws SQLException {
@@ -137,7 +160,7 @@ public class BinlogPositionManager {
                 rs.close();
             }
         }
-
+        logger.info("[BinlogPositionManager]: init from binlogTail, fileName is {}, position is {}",binlogFilename,nextPosition);
     }
 
     public String getBinlogFilename() {

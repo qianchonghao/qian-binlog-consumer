@@ -29,6 +29,7 @@ public class Config {
     public Integer mysqlPort;
     public String mysqlUsername;
     public String mysqlPassword;
+    public String group;
 
     public String mqNamesrvAddr;
     public String mqTopic;
@@ -126,5 +127,9 @@ public class Config {
 
     public void setStartType(String startType) {
         this.startType = startType;
+    }
+
+    public void setGroup(String group) {
+        this.group = group;
     }
 }

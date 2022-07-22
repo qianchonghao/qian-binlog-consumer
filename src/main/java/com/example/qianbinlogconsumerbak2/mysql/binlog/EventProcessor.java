@@ -86,16 +86,14 @@ public class EventProcessor {
         eventListener = new EventListener(queue);
         // @leimo 4. 配置 binlogClient
         // binlogClient = [eventListener, eventDeserializer]
-        // @leimo todo: fix
-//        binaryLogClient = new BinaryLogClient(config.mysqlAddr,
-//            config.mysqlPort,
-//            config.mysqlUsername,
-//            config.mysqlPassword);
-        binaryLogClient = new BinaryLogClient("spring_demo",
-                config.mysqlUsername,
-                config.mysqlPassword);
+        binaryLogClient = new BinaryLogClient(config.mysqlAddr,
+            config.mysqlPort,
+            config.mysqlUsername,
+            config.mysqlPassword);
         binaryLogClient.setBlocking(true);
-        binaryLogClient.setServerId(1001);
+        // @leimo todo: 需要根据 group.hashCode 生成hashCode存在重复的可能
+        // @leimo todo 当前demo不考虑，同应用多pod重复消费 event的情况
+        binaryLogClient.setServerId(config.group.hashCode());
 
         EventDeserializer eventDeserializer = new EventDeserializer();
         eventDeserializer.setCompatibilityMode(EventDeserializer.CompatibilityMode.DATE_AND_TIME_AS_LONG,
@@ -277,8 +275,9 @@ public class EventProcessor {
     private void initDataSource() throws Exception {
         Map<String, String> map = new HashMap<>();
         map.put("driverClassName", "com.mysql.cj.jdbc.Driver");
-//        map.put("url", "jdbc:mysql://" + config.mysqlAddr + ":" + config.mysqlPort + "?useSSL=true&verifyServerCertificate=false");
         map.put("url", "jdbc:mysql://" + config.mysqlAddr + ":" + config.mysqlPort + "?&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8");
+        // @leimo todo : 链接 spring_demo的 db，执行 create db & create table ， 测试是否可行
+//        map.put("url", "jdbc:mysql://" + config.mysqlAddr + ":" + config.mysqlPort +"/spring_demo"+ "?&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8");
         map.put("username", config.mysqlUsername);
         map.put("password", config.mysqlPassword);
         map.put("initialSize", "2");
