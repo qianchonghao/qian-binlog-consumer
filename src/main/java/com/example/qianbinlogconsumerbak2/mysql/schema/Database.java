@@ -19,7 +19,10 @@ package com.example.qianbinlogconsumerbak2.mysql.schema;
 
 import com.example.qianbinlogconsumerbak2.mysql.binlog.EventProcessor;
 
+import com.example.qianbinlogconsumerbak2.mysql.config.Config;
+import com.example.qianbinlogconsumerbak2.mysql.config.SubscribeInfo;
 import com.example.qianbinlogconsumerbak2.mysql.schema.column.ColumnParser;
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +32,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Database {
@@ -37,15 +41,24 @@ public class Database {
     private static final String SQL = "select table_name,column_name,data_type,column_type,character_set_name " +
         "from information_schema.columns " +
         "where table_schema = ?";
+
+    private Config config;
+
+    private static List<String> TARGET_TABLES = Lists.newArrayList();
+
     private String name;
 
     private DataSource dataSource;
 
     private Map<String, Table> tableMap = new HashMap<String, Table>();
 
-    public Database(String name, DataSource dataSource) {
+    public Database(String name, DataSource dataSource, Config config) {
         this.name = name;
         this.dataSource = dataSource;
+        this.config = config;
+        for (SubscribeInfo info : config.subscribeInfos) {
+            TARGET_TABLES.addAll(info.getTables());
+        }
     }
 
     public void init() throws SQLException {
@@ -55,7 +68,7 @@ public class Database {
 
         try {
             conn = dataSource.getConnection();
-
+            // @leimo learn :  SQL的 parameter注入
             ps = conn.prepareStatement(SQL);
             ps.setString(1, name);
             rs = ps.executeQuery();
@@ -66,6 +79,10 @@ public class Database {
                 String dataType = rs.getString(3);
                 String colType = rs.getString(4);
                 String charset = rs.getString(5);
+
+                if (!TARGET_TABLES.contains(tableName)) {
+                    continue;
+                }
 
                 ColumnParser columnParser = ColumnParser.getColumnParser(dataType, colType, charset);
 

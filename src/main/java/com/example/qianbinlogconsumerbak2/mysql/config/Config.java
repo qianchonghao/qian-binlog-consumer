@@ -15,11 +15,16 @@
  * limitations under the License.
  */
 
-package com.example.qianbinlogconsumerbak2.mysql;
+package com.example.qianbinlogconsumerbak2.mysql.config;
 
-import java.io.IOException;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import org.springframework.util.ClassUtils;
+
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 
 
@@ -31,6 +36,8 @@ public class Config {
     public String mysqlPassword;
     public String group;
 
+
+    public List<SubscribeInfo> subscribeInfos;
     public String mqNamesrvAddr;
     public String mqTopic;
 
@@ -39,9 +46,10 @@ public class Config {
     public Long nextPosition;
     public Integer maxTransactionRows = 100;
 
-    public void load() throws IOException {
+    public void load() throws Exception {
 
         InputStream in = Config.class.getClassLoader().getResourceAsStream("rocketmq_mysql.conf");
+//        InputStream in = Config.class.getClassLoader().getResourceAsStream("application.yml");
         Properties properties = new Properties();
         properties.load(in);
 
@@ -49,7 +57,7 @@ public class Config {
 
     }
 
-    private void properties2Object(final Properties p, final Object object) {
+    private void properties2Object(final Properties p, final Object object) throws InstantiationException, IllegalAccessException {
         Method[] methods = object.getClass().getMethods();
         for (Method method : methods) {
             String mn = method.getName();
@@ -77,8 +85,18 @@ public class Config {
                                 arg = Float.parseFloat(property);
                             } else if (cn.equals("String")) {
                                 arg = property;
-                            } else {
-                                continue;
+                            } else{
+                                // @leimo todo : 思考有没有 解析的框架
+                                // @leimo todo: 获取不到泛型。 通过注解获取
+                                ClassInfo classInfo = method.getAnnotation(ClassInfo.class);
+                                if (classInfo != null) {
+                                    Class fieldType = ClassUtils.forName(classInfo.className(), this.getClass().getClassLoader());
+                                    arg = ClassInfo.ARRAY.equals(classInfo.type()) ?
+                                            JSONObject.parseArray(property, fieldType) :
+                                            JSONObject.parseObject(property, fieldType);
+                                } else {
+                                    continue;
+                                }
                             }
                             method.invoke(object, arg);
                         }
@@ -87,6 +105,11 @@ public class Config {
                 }
             }
         }
+    }
+
+    @ClassInfo(className = "com.example.qianbinlogconsumerbak2.mysql.config.SubscribeInfo",type = ClassInfo.ARRAY)
+    public void setSubscribeInfos(List<SubscribeInfo> subscribeInfos) {
+        this.subscribeInfos = subscribeInfos;
     }
 
     public void setMysqlAddr(String mysqlAddr) {

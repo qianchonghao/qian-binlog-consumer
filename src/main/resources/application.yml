@@ -1,0 +1,14 @@
+mysqlAddr: 127.0.0.1
+mysqlPort: 3306
+mysqlUsername: root
+mysqlPassword: 123456
+
+group: xspace-account
+subscribeInfos:
+  d1:
+    database: spring_demo
+    tables: [user]
+
+mqNamesrvAddr: 127.0.0.1:9876
+mqTopic: topic_a
+

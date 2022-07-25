@@ -17,7 +17,7 @@
 
 package com.example.qianbinlogconsumerbak2.mysql.productor;
 
-import com.example.qianbinlogconsumerbak2.mysql.Config;
+import com.example.qianbinlogconsumerbak2.mysql.config.Config;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendResult;

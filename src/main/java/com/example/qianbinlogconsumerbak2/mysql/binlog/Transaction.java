@@ -18,7 +18,7 @@
 package com.example.qianbinlogconsumerbak2.mysql.binlog;
 
 import com.alibaba.fastjson.JSONObject;
-import com.example.qianbinlogconsumerbak2.mysql.Config;
+import com.example.qianbinlogconsumerbak2.mysql.config.Config;
 import com.example.qianbinlogconsumerbak2.mysql.position.BinlogPosition;
 import com.example.qianbinlogconsumerbak2.mysql.schema.Table;
 

@@ -18,6 +18,9 @@
 package com.example.qianbinlogconsumerbak2.mysql.schema;
 
 import com.example.qianbinlogconsumerbak2.mysql.binlog.EventProcessor;
+import com.example.qianbinlogconsumerbak2.mysql.config.Config;
+import com.example.qianbinlogconsumerbak2.mysql.config.SubscribeInfo;
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,14 +37,22 @@ public class Schema {
     private static final String SQL = "select schema_name from information_schema.schemata";
 
     private static final List<String> IGNORED_DATABASES = new ArrayList<>(
-        Arrays.asList(new String[] {"information_schema", "mysql", "performance_schema", "sys"})
+            Arrays.asList(new String[]{"information_schema", "mysql", "performance_schema", "sys"})
     );
+
+    private static List<String> TARGET_DATABASES = Lists.newArrayList();
 
     private DataSource dataSource;
 
+    private Config config;
+
     private Map<String, Database> dbMap;
 
-    public Schema(DataSource dataSource) {
+    public Schema(DataSource dataSource, Config config) {
+        for (SubscribeInfo info : config.subscribeInfos) {
+            TARGET_DATABASES.add(info.getDatabase());
+        }
+        this.config = config;
         this.dataSource = dataSource;
     }
 
@@ -62,8 +73,8 @@ public class Schema {
             while (rs.next()) {
                 String dbName = rs.getString(1);
 
-                if (!IGNORED_DATABASES.contains(dbName)) {
-                    Database database = new Database(dbName, dataSource);
+                if (!IGNORED_DATABASES.contains(dbName) && TARGET_DATABASES.contains(dbName)) {
+                    Database database = new Database(dbName, dataSource,config);
                     dbMap.put(dbName, database);
                 }
             }
@@ -85,6 +96,8 @@ public class Schema {
             db.init();
         }
 
+        // @leimo todo: 实现 sl4j逻辑
+        System.out.println("[Schema]: load success");
     }
 
     public Table getTable(String dbName, String tableName) {

@@ -18,7 +18,7 @@
 package com.example.qianbinlogconsumerbak2.mysql.position;
 
 
-import com.example.qianbinlogconsumerbak2.mysql.Config;
+import com.example.qianbinlogconsumerbak2.mysql.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,6 +99,7 @@ public class BinlogPositionManager {
             int createTableRes = connection.createStatement().executeUpdate(CREATE_TABLE);
 //            int createGroupIndex = connection.createStatement().executeUpdate(CREATE_GROUP_INDEX);
 //            int createServerIdIndex = connection.createStatement().executeUpdate(CREATE_SERVERID_INDEX);
+            // @leimo test ： 创建测试所用的 position记录
 //            try {
 //                int res = connection.createStatement().executeUpdate(INSERT);
 //            } catch (SQLException e) {
@@ -118,9 +119,9 @@ public class BinlogPositionManager {
         Connection conn = null;
         ResultSet queryPositionRes = null;
         try {
-            Connection connection = dataSource.getConnection();
+            conn = dataSource.getConnection();
             // query position
-            queryPositionRes = connection.createStatement().executeQuery(QUERY_POSITION);
+            queryPositionRes = conn.createStatement().executeQuery(QUERY_POSITION);
             while (queryPositionRes.next()) {
                 binlogFilename = queryPositionRes.getString("fileName");
                 nextPosition = queryPositionRes.getLong("position");
@@ -143,8 +144,8 @@ public class BinlogPositionManager {
         ResultSet rs = null;
 
         try {
-            Connection connection = dataSource.getConnection();
-            rs = connection.createStatement().executeQuery(sql);
+            conn = dataSource.getConnection();
+            rs = conn.createStatement().executeQuery(sql);
 
             while (rs.next()) {
                 binlogFilename = rs.getString("File");

@@ -18,7 +18,7 @@
 package com.example.qianbinlogconsumerbak2.mysql.binlog;
 
 import com.alibaba.druid.pool.DruidDataSourceFactory;
-import com.example.qianbinlogconsumerbak2.mysql.Config;
+import com.example.qianbinlogconsumerbak2.mysql.config.Config;
 import com.example.qianbinlogconsumerbak2.mysql.Replicator;
 import com.example.qianbinlogconsumerbak2.mysql.position.BinlogPosition;
 import com.example.qianbinlogconsumerbak2.mysql.position.BinlogPositionManager;
@@ -80,7 +80,7 @@ public class EventProcessor {
         binlogPositionManager.initBeginPosition();
 
         // @leimo 3. connect datasource，遍历database-table。解析并存储table信息
-        schema = new Schema(dataSource);
+        schema = new Schema(dataSource,config);
         schema.load();
 
         eventListener = new EventListener(queue);
@@ -120,7 +120,6 @@ public class EventProcessor {
                     checkConnection();
                     continue;
                 }
-                // @leimo todo:  策略模式，分流
                 switch (event.getHeader().getEventType()) {
                     case TABLE_MAP:
                         processTableMapEvent(event);
@@ -277,7 +276,7 @@ public class EventProcessor {
         map.put("driverClassName", "com.mysql.cj.jdbc.Driver");
         map.put("url", "jdbc:mysql://" + config.mysqlAddr + ":" + config.mysqlPort + "?&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8");
         // @leimo todo : 链接 spring_demo的 db，执行 create db & create table ， 测试是否可行
-//        map.put("url", "jdbc:mysql://" + config.mysqlAddr + ":" + config.mysqlPort +"/spring_demo"+ "?&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8");
+        map.put("url", "jdbc:mysql://" + config.mysqlAddr + ":" + config.mysqlPort +"/test"+ "?&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8");
         map.put("username", config.mysqlUsername);
         map.put("password", config.mysqlPassword);
         map.put("initialSize", "2");
@@ -287,6 +286,9 @@ public class EventProcessor {
         map.put("minEvictableIdleTimeMillis", "300000");
         map.put("validationQuery", "SELECT 1 FROM DUAL");
         map.put("testWhileIdle", "true");
+        // @leimo test : druidDataSourceFactory.createDataSource() 是否接无效kv; // 接受无效kv
+
+        map.put("aaa","vb");
 
         dataSource = DruidDataSourceFactory.createDataSource(map);
     }

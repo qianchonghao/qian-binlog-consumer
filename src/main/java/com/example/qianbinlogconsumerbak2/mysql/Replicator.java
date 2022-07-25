@@ -19,6 +19,7 @@ package com.example.qianbinlogconsumerbak2.mysql;
 
 import com.example.qianbinlogconsumerbak2.mysql.binlog.EventProcessor;
 import com.example.qianbinlogconsumerbak2.mysql.binlog.Transaction;
+import com.example.qianbinlogconsumerbak2.mysql.config.Config;
 import com.example.qianbinlogconsumerbak2.mysql.position.BinlogPosition;
 import com.example.qianbinlogconsumerbak2.mysql.position.BinlogPositionLogThread;
 import com.example.qianbinlogconsumerbak2.mysql.productor.RocketMQProducer;
