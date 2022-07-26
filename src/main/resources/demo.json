@@ -1,0 +1,8 @@
+[
+  {
+    "database": "spring_demo",
+    "tables": [
+      "user"
+    ]
+  }
+]
